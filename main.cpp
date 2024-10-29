@@ -75,71 +75,54 @@ int main(int argc, char* argv[]) {
 
     // Bucle principal de envío de datos
     while (!allSent || base != nextseqnum) {
-        TRACE << "Window State: base=" << base << ", nextseqnum=" << nextseqnum << ENDL;
-
-        // Enviar paquetes en la ventana si hay espacio y aún no se han enviado todos los datos
+    // Enviar paquetes si hay espacio en la ventana
         if (nextseqnum < base + WINDOW_SIZE && !allSent) {
             datagramS packet = {};
-            packet.seqNum = nextseqnum; // Asigna el número de secuencia
-
+            packet.seqNum = nextseqnum;
+            
             // Leer datos del archivo
             inputFile.read(packet.data, MAX_PAYLOAD_LENGTH);
             packet.payloadLength = inputFile.gcount();
             packet.checksum = computeChecksum(packet);
-
-            // Almacenar el paquete en la ventana y enviarlo
+    
+            // Almacenar y enviar el paquete
             sndpkt[nextseqnum % WINDOW_SIZE] = packet;
             connection.udt_send(packet);
             TRACE << "Sent packet: " << toString(packet) << ENDL;
-
+    
             // Iniciar el temporizador si es el primer paquete en la ventana
             if (base == nextseqnum) {
-                TRACE << "Starting timer for base: " << base << ENDL;
                 timer.start();
             }
-
-            nextseqnum++; // Incrementar el número de secuencia para el siguiente paquete
-            DEBUG << "Incremented nextseqnum to: " << nextseqnum << ENDL;
-
-            // Verificar si hemos llegado al final del archivo
+    
+            nextseqnum++;
             if (packet.payloadLength < MAX_PAYLOAD_LENGTH) {
-                allSent = true; // Marcar que todos los datos han sido enviados
-                TRACE << "All data read from file, marking allSent as true." << ENDL;
+                allSent = true;
             }
         }
-
+    
         // Recepción de ACKs
         datagramS ackPacket;
         if (connection.udt_receive(ackPacket) > 0) {
-            TRACE << "Received ACK with ackNum=" << ackPacket.ackNum << ", base=" << base << ENDL;
             if (validateChecksum(ackPacket) && ackPacket.ackNum >= base) {
-                TRACE << "Valid ACK for packet " << ackPacket.ackNum << ENDL;
-                base = ackPacket.ackNum + 1; // Actualiza el base al siguiente número esperado
-
-                // Detener el temporizador si todos los paquetes en la ventana han sido confirmados
+                base = ackPacket.ackNum + 1;
                 if (base == nextseqnum) {
-                    TRACE << "All packets in window acknowledged, stopping timer." << ENDL;
                     timer.stop();
                 } else {
-                    TRACE << "Packets still unacknowledged, restarting timer." << ENDL;
-                    timer.start(); // Reiniciar el temporizador para esperar más ACKs
+                    timer.start();
                 }
-                DEBUG << "Updated base to: " << base << ENDL;
-            } else {
-                TRACE << "Received corrupted or invalid ACK, ignoring." << ENDL;
             }
         }
-
-        // Reenviar en caso de timeout
+    
+        // Timeout y reenvío
         if (timer.timeout()) {
-            TRACE << "Timeout occurred for base: " << base << ". Resending packets from base to nextseqnum - 1." << ENDL;
             for (uint16_t i = base; i < nextseqnum; ++i) {
                 connection.udt_send(sndpkt[i % WINDOW_SIZE]);
-                TRACE << "Resent packet: " << toString(sndpkt[i % WINDOW_SIZE]) << " with seqNum=" << sndpkt[i % WINDOW_SIZE].seqNum << ENDL;
             }
-            timer.start(); // Reiniciar el temporizador después de reenviar
+            timer.start();
         }
     }
+
 
     // Enviar paquete final para indicar fin del archivo
     datagramS endPacket = {};
