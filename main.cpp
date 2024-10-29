@@ -13,6 +13,7 @@
 #define MAX_PAYLOAD_LENGTH 255
 
 int main(int argc, char* argv[]) {
+    // Default parameters
     uint16_t portNum(12345);
     std::string hostname("isengard.mines.edu");
     std::string inputFilename("file1.html");
@@ -51,86 +52,105 @@ int main(int argc, char* argv[]) {
     TRACE << "\tDebug Level: " << LOG_LEVEL << ENDL;
     TRACE << "\tInput file name: " << inputFilename << ENDL;
 
-    // Abrir el archivo de entrada
+    // Open the input file
     std::ifstream inputFile(inputFilename, std::ios::binary);
     if (!inputFile.is_open()) {
         FATAL << "Unable to open file: " << inputFilename << ENDL;
         return 1;
     }
 
-    // Inicializar los parámetros de la conexión y el temporizador
+    INFO << "File opened successfully: " << inputFilename << ENDL;
+
+    // Initialize connection parameters and timer
     unreliableTransportC connection(hostname, portNum);
     timerC timer(10);
 
-    // Inicializar correctamente base y nextseqnum en cada ejecución
-    uint16_t base = 1;           // Reinicia el base a 1
-    uint16_t nextseqnum = 1;      // Reinicia el nextseqnum a 1
-    bool allSent = false;         // Indica si todos los datos fueron enviados
+    // Initialize base and nextseqnum for each execution
+    uint16_t base = 1;           // Reset base to 1
+    uint16_t nextseqnum = 1;      // Reset nextseqnum to 1
+    bool allSent = false;         // Indicates if all data has been sent
 
-    // Array para almacenar los paquetes enviados pero no confirmados
+    // Array to store sent but unacknowledged packets
     std::array<datagramS, WINDOW_SIZE> sndpkt;
 
-    // Detener el temporizador al inicio
+    // Stop the timer at the beginning
     timer.stop();
 
-    // Bucle principal de envío de datos
+    INFO << "Starting data transfer..." << ENDL;
+
+    // Main loop for sending data
     while (!allSent || base != nextseqnum) {
-    // Enviar paquetes si hay espacio en la ventana
+        // Send packets if there is space in the window
         if (nextseqnum < base + WINDOW_SIZE && !allSent) {
             datagramS packet = {};
             packet.seqNum = nextseqnum;
             
-            // Leer datos del archivo
+            // Read data from the file
             inputFile.read(packet.data, MAX_PAYLOAD_LENGTH);
             packet.payloadLength = inputFile.gcount();
             packet.checksum = computeChecksum(packet);
     
-            // Almacenar y enviar el paquete
+            // Store and send the packet
             sndpkt[nextseqnum % WINDOW_SIZE] = packet;
             connection.udt_send(packet);
             TRACE << "Sent packet: " << toString(packet) << ENDL;
-    
-            // Iniciar el temporizador si es el primer paquete en la ventana
+
+            DEBUG << "Packet with seqNum " << packet.seqNum << " sent. Payload length: " << packet.payloadLength << ENDL;
+
+            // Start the timer if it's the first packet in the window
             if (base == nextseqnum) {
                 timer.start();
+                DEBUG << "Timer started as this is the first packet in the window." << ENDL;
             }
     
             nextseqnum++;
             if (packet.payloadLength < MAX_PAYLOAD_LENGTH) {
                 allSent = true;
+                INFO << "All data from the file has been read and sent." << ENDL;
             }
         }
     
-        // Recepción de ACKs
+        // Receive ACKs
         datagramS ackPacket;
         if (connection.udt_receive(ackPacket) > 0) {
             if (validateChecksum(ackPacket) && ackPacket.ackNum >= base) {
+                INFO << "Received valid ACK for seqNum: " << ackPacket.ackNum << ENDL;
                 base = ackPacket.ackNum + 1;
+
+                // Stop the timer if all packets in the window are acknowledged
                 if (base == nextseqnum) {
                     timer.stop();
+                    DEBUG << "Timer stopped. All packets in the window are acknowledged." << ENDL;
                 } else {
                     timer.start();
+                    DEBUG << "Timer restarted for remaining packets in the window." << ENDL;
                 }
+            } else {
+                WARNING << "Received an invalid or duplicate ACK with seqNum: " << ackPacket.ackNum << ENDL;
             }
         }
     
-        // Timeout y reenvío
+        // Handle timeout and retransmissions
         if (timer.timeout()) {
+            WARNING << "Timeout occurred. Retransmitting packets from base " << base << " to " << (nextseqnum - 1) << ENDL;
             for (uint16_t i = base; i < nextseqnum; ++i) {
                 connection.udt_send(sndpkt[i % WINDOW_SIZE]);
+                DEBUG << "Retransmitted packet with seqNum: " << sndpkt[i % WINDOW_SIZE].seqNum << ENDL;
             }
-            timer.start();
+            timer.start();  // Restart timer after retransmitting
         }
+
+        // Log the window state for debug purposes
+        TRACE << "Window State: base=" << base << ", nextseqnum=" << nextseqnum << ENDL;
     }
 
-
-    // Enviar paquete final para indicar fin del archivo
+    // Send final packet to indicate end of file
     datagramS endPacket = {};
     endPacket.seqNum = nextseqnum;
     endPacket.payloadLength = 0;
     endPacket.checksum = computeChecksum(endPacket);
     connection.udt_send(endPacket);
-    TRACE << "Sent end of file packet: " << toString(endPacket) << ENDL;
+    INFO << "Sent end of file packet: " << toString(endPacket) << ENDL;
 
     inputFile.close();
     TRACE << "File transfer completed. Cleaning up and exiting." << ENDL;
