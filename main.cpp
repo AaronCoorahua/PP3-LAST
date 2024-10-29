@@ -10,7 +10,6 @@
 #include "logging.h"
 
 #define WINDOW_SIZE 10
-#define MAX_PAYLOAD_LENGTH 512
 
 int main(int argc, char* argv[]) {
     uint16_t portNum(12345);
