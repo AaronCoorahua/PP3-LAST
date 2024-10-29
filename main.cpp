@@ -60,7 +60,7 @@ int main(int argc, char* argv[]) {
 
     // Initialize unreliable transport, timer, and window variables
     unreliableTransportC connection(hostname, portNum);
-    timerC timer(2000); // Set a 500 ms timeout duration
+    timerC timer(500); // Set a 500 ms timeout duration
     std::array<datagramS, WINDOW_SIZE> sndpkt;
     uint16_t base = 1;
     uint16_t nextseqnum = 1;
@@ -69,6 +69,8 @@ int main(int argc, char* argv[]) {
     timer.stop();
 
     while (!allSent || base != nextseqnum) {
+        TRACE << "Window State: base=" << base << ", nextseqnum=" << nextseqnum << ENDL;
+
         // Check if there is space in the window
         if (nextseqnum < base + WINDOW_SIZE && !allSent) {
             datagramS packet = {};
@@ -86,36 +88,45 @@ int main(int argc, char* argv[]) {
 
             // Start timer if it's the first packet in the window
             if (base == nextseqnum) {
+                TRACE << "Starting timer for base: " << base << ENDL;
                 timer.start();
             }
 
             nextseqnum++;
+            DEBUG << "Incremented nextseqnum to: " << nextseqnum << ENDL;
 
             // Check if we've reached the end of the file
             if (packet.payloadLength < MAX_PAYLOAD_LENGTH) {
                 allSent = true;
+                TRACE << "All data read from file, marking allSent as true." << ENDL;
             }
         }
 
         // Check for acknowledgments
         datagramS ackPacket;
         if (connection.udt_receive(ackPacket) > 0) {
+            TRACE << "ACK received with ackNum=" << ackPacket.ackNum << ", base=" << base << ENDL;
             if (validateChecksum(ackPacket) && ackPacket.ackNum >= base) {
-                TRACE << "Received ACK for packet " << ackPacket.ackNum << ENDL;
+                TRACE << "Valid ACK for packet " << ackPacket.ackNum << ENDL;
                 base = ackPacket.ackNum + 1;
 
                 // Stop timer if all packets in the window are acknowledged
                 if (base == nextseqnum) {
+                    TRACE << "All packets in window acknowledged, stopping timer." << ENDL;
                     timer.stop();
                 } else {
+                    TRACE << "Packets still unacknowledged, restarting timer." << ENDL;
                     timer.start(); // Restart the timer for remaining packets
                 }
+                DEBUG << "Updated base to: " << base << ENDL;
+            } else {
+                TRACE << "Received corrupted or invalid ACK, ignoring." << ENDL;
             }
         }
 
         // Check for timeout
         if (timer.timeout()) {
-            TRACE << "Timeout occurred. Resending packets from base: " << base << " to " << (nextseqnum - 1) << ENDL;
+            TRACE << "Timeout occurred for base: " << base << ". Resending packets." << ENDL;
             for (uint16_t i = base; i < nextseqnum; ++i) {
                 connection.udt_send(sndpkt[i % WINDOW_SIZE]);
                 TRACE << "Resent packet: " << toString(sndpkt[i % WINDOW_SIZE]) << ENDL;
@@ -134,5 +145,7 @@ int main(int argc, char* argv[]) {
 
     // Close file and cleanup
     inputFile.close();
+    TRACE << "File transfer completed. Cleaning up and exiting." << ENDL;
+
     return 0;
 }
