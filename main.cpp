@@ -60,7 +60,7 @@ int main(int argc, char* argv[]) {
 
     // Inicializar los parámetros de la conexión y el temporizador
     unreliableTransportC connection(hostname, portNum);
-    timerC timer(1000); // Timeout de 5000 ms para diagnóstico
+    timerC timer(5); // Timeout de 5000 ms para diagnóstico
 
     // Inicializar correctamente base y nextseqnum en cada ejecución
     uint16_t base = 1;           // Reinicia el base a 1
