@@ -19,7 +19,7 @@ inline int LOG_LEVEL = 3;
 #define WARNING if (LOG_LEVEL > 2) { std::cerr << "WARNING: "
 #define ERROR   if (LOG_LEVEL > 1) { std::cerr << "ERROR: "
 #define FATAL   if (LOG_LEVEL > 0) { std::cerr << "FATAL: "
-#define ENDL  " (" << __FILE_NAME__ << ":" << __LINE__ << ")" << std::endl; } 1==1
+#define ENDL  " (" << __FILE_NAME__ << ":" << __LINE__ << ")" << std::endl; }
 
 
 #endif //LOGGING_H
