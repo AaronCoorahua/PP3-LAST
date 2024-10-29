@@ -10,12 +10,13 @@
 #include "logging.h"
 
 #define WINDOW_SIZE 10
+#define MAX_PAYLOAD_LENGTH 255
 
 int main(int argc, char* argv[]) {
     uint16_t portNum(12345);
     std::string hostname("isengard.mines.edu");
     std::string inputFilename("file1.html");
-    int LOG_LEVEL = 3;
+    int LOG_LEVEL = 5;
 
     int opt;
     try {
@@ -57,7 +58,7 @@ int main(int argc, char* argv[]) {
     }
 
     unreliableTransportC connection(hostname, portNum);
-    timerC timer(5000);
+    timerC timer(5000); // Timeout de 5000 ms para diagnóstico
     std::array<datagramS, WINDOW_SIZE> sndpkt;
     uint16_t base = 1;
     uint16_t nextseqnum = 1;
@@ -68,7 +69,7 @@ int main(int argc, char* argv[]) {
     while (!allSent || base != nextseqnum) {
         TRACE << "Window State: base=" << base << ", nextseqnum=" << nextseqnum << ENDL;
 
-        // Check if there is space in the window
+        // Enviar paquetes en la ventana
         if (nextseqnum < base + WINDOW_SIZE && !allSent) {
             datagramS packet = {};
             packet.seqNum = nextseqnum;
@@ -95,10 +96,10 @@ int main(int argc, char* argv[]) {
             }
         }
 
-        // Check for acknowledgments
+        // Recepción de ACKs
         datagramS ackPacket;
         if (connection.udt_receive(ackPacket) > 0) {
-            TRACE << "ACK received with ackNum=" << ackPacket.ackNum << ", base=" << base << ENDL;
+            TRACE << "Received ACK with ackNum=" << ackPacket.ackNum << ", base=" << base << ENDL;
             if (validateChecksum(ackPacket) && ackPacket.ackNum >= base) {
                 TRACE << "Valid ACK for packet " << ackPacket.ackNum << ENDL;
                 base = ackPacket.ackNum + 1;
@@ -116,7 +117,7 @@ int main(int argc, char* argv[]) {
             }
         }
 
-        // Check for timeout
+        // Timeout y reenvío
         if (timer.timeout()) {
             TRACE << "Timeout occurred for base: " << base << ". Resending packets from base to nextseqnum - 1." << ENDL;
             for (uint16_t i = base; i < nextseqnum; ++i) {
@@ -127,7 +128,7 @@ int main(int argc, char* argv[]) {
         }
     }
 
-    // Send final packet to indicate end of file
+    // Enviar paquete final para indicar fin del archivo
     datagramS endPacket = {};
     endPacket.seqNum = nextseqnum;
     endPacket.payloadLength = 0;
