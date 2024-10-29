@@ -10,6 +10,7 @@
 #include "logging.h"
 
 #define WINDOW_SIZE 10
+#define MAX_PAYLOAD_LENGTH 512
 
 int main(int argc, char* argv[]) {
     uint16_t portNum(12345);
@@ -57,7 +58,7 @@ int main(int argc, char* argv[]) {
     }
 
     unreliableTransportC connection(hostname, portNum);
-    timerC timer(500); // Ajustar el timeout según sea necesario
+    timerC timer(500);
     std::array<datagramS, WINDOW_SIZE> sndpkt;
     uint16_t base = 1;
     uint16_t nextseqnum = 1;
@@ -118,10 +119,10 @@ int main(int argc, char* argv[]) {
 
         // Check for timeout
         if (timer.timeout()) {
-            TRACE << "Timeout occurred for base: " << base << ". Resending packets." << ENDL;
+            TRACE << "Timeout occurred for base: " << base << ". Resending packets from base to nextseqnum - 1." << ENDL;
             for (uint16_t i = base; i < nextseqnum; ++i) {
                 connection.udt_send(sndpkt[i % WINDOW_SIZE]);
-                TRACE << "Resent packet: " << toString(sndpkt[i % WINDOW_SIZE]) << ENDL;
+                TRACE << "Resent packet: " << toString(sndpkt[i % WINDOW_SIZE]) << " with seqNum=" << sndpkt[i % WINDOW_SIZE].seqNum << ENDL;
             }
             timer.start(); // Reiniciar el temporizador después de reenviar
         }
