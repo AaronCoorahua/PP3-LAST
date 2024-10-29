@@ -1,8 +1,8 @@
 CXX = g++
 CXXFLAGS = -std=c++17 -Wall -Wextra -g
-LDFLAGS = -lpthread 
+LDFLAGS = -lpthread
 
-SOURCES = main.cpp datagram.cpp unreliableTransport.cpp timerC.cpp logging.cpp
+SOURCES = main.cpp datagram.cpp unreliableTransport.cpp timerC.cpp
 OBJECTS = $(SOURCES:.cpp=.o)
 EXECUTABLE = rft-client
 
@@ -11,7 +11,7 @@ all: $(EXECUTABLE)
 $(EXECUTABLE): $(OBJECTS)
 	$(CXX) $(CXXFLAGS) -o $@ $(OBJECTS) $(LDFLAGS)
 
-%.o: %.cpp
+%.o: %.cpp logging.h
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
 clean:
