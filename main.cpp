@@ -57,7 +57,7 @@ int main(int argc, char* argv[]) {
     }
 
     unreliableTransportC connection(hostname, portNum);
-    timerC timer(500);
+    timerC timer(5000);
     std::array<datagramS, WINDOW_SIZE> sndpkt;
     uint16_t base = 1;
     uint16_t nextseqnum = 1;
