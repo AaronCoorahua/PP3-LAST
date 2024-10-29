@@ -15,8 +15,8 @@ int main(int argc, char* argv[]) {
     // Default parameters
     uint16_t portNum(12345);
     std::string hostname("isengard.mines.edu");
-    std::string inputFilename("input.dat");
-    int LOG_LEVEL = 0; // Set the default log level
+    std::string inputFilename("file1.html");
+    int LOG_LEVEL = 3; // Set the default log level
 
     int opt;
     try {
@@ -60,7 +60,7 @@ int main(int argc, char* argv[]) {
 
     // Initialize unreliable transport, timer, and window variables
     unreliableTransportC connection(hostname, portNum);
-    timerC timer(500); // Set a 500 ms timeout duration
+    timerC timer(2000); // Set a 500 ms timeout duration
     std::array<datagramS, WINDOW_SIZE> sndpkt;
     uint16_t base = 1;
     uint16_t nextseqnum = 1;
