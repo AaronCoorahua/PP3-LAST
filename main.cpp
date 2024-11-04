@@ -63,7 +63,7 @@ int main(int argc, char* argv[]) {
 
     // Initialize connection parameters and timer
     unreliableTransportC connection(hostname, portNum);
-    timerC timer();
+    timerC timer(0);
     timer.setDuration(100);
     // Initialize base and nextseqnum for each execution
     uint16_t base = 1;           // Reset base to 1
