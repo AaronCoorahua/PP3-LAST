@@ -95,7 +95,7 @@ int main(int argc, char* argv[]) {
             connection.udt_send(packet);
             TRACE << "Sent packet: " << toString(packet) << ENDL;
 
-            DEBUG << "Packet with seqNum " << packet.seqNum << " sent. Payload length: " << packet.payloadLength << ENDL;
+            DEBUG << "Packet with seqNum " << packet.seqNum << " sent. Payload length: " << toString(packet.payloadLength) << ENDL;
 
             // Start the timer if it's the first packet in the window
             if (base == nextseqnum) {
