@@ -5,6 +5,7 @@ LDFLAGS = -lpthread
 SOURCES = main.cpp datagram.cpp unreliableTransport.cpp timerC.cpp
 OBJECTS = $(SOURCES:.cpp=.o)
 EXECUTABLE = rft-client
+USERNAME = "Aaron Coorahua"
 
 all: $(EXECUTABLE)
 
@@ -19,3 +20,6 @@ clean:
 
 run: $(EXECUTABLE)
 	./$(EXECUTABLE) -h isengard.mines.edu -p 12345 -f input.dat -d 3
+
+submit: clean
+	tar -cvf $(USERNAME)_submission.tar $(SOURCES) logging.h datagram.h unreliableTransport.h timerC.h Makefile README.md CMakeLists.txt
